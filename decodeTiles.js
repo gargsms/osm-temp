@@ -1,4 +1,5 @@
 const fs = require( 'fs' );
+const outStream = fs.createWriteStream( process.argv[ 2 ] + '.txt' || 'out' );
 var index = 0;
 
 function getVertex( buffer ) {
@@ -34,9 +35,7 @@ function decodeVertexGroup( file, buffer, offset ) {
   } );
 
   for ( ; i < length; i++ ) {
-    fs.appendFile( file, getVertex( buffer.slice( 9 * i + 2, 9 * ( i + 1 ) + 2 ) ), ( e ) => {
-      if ( e ) throw e;
-    } );
+    outStream.write( getVertex( buffer.slice( 9 * i + 2, 9 * ( i + 1 ) + 2 ) ) );
   }
 
   return 2 + length * 9;
@@ -54,9 +53,7 @@ function decodeTriangleGroup( file, buffer, offset ) {
   } );
 
   for ( ; i < length; i++ ) {
-    fs.appendFile( file, getVertexIndex( buffer.slice( 2 * i + plus9, 2 * ( i + 1 ) + plus9 ) ), ( e ) => {
-      if ( e ) throw e;
-    } );
+    outStream.write( getVertexIndex( buffer.slice( 2 * i + plus9, 2 * ( i + 1 ) + plus9 ) ) );
   }
 
   return 9 + length * 2;
@@ -67,9 +64,7 @@ function writeHeader( file, type, props ) {
   for ( prop in props ) {
     out += prop + ':' + props[ prop ] + '\n';
   }
-  fs.appendFile( file, out, ( e ) => {
-    if ( e ) throw e;
-  } );
+  outStream.write( out );
 }
 
 function processFile( file ) {
@@ -98,9 +93,11 @@ function start( buffer ) {
       break;
     default:
       console.error( 'Bad group: ', group, ' at offset ', offset );
-      process.exit(1);
+      process.exit( 1 );
     }
   }
+
+  outStream.end( );
 
 }
 
