@@ -1,5 +1,5 @@
 const fs = require( 'fs' );
-const outStream = fs.createWriteStream( process.argv[ 2 ] + '.txt' || 'out' );
+const outStream = fs.createWriteStream( ( process.argv[ 2 ] || 'out' ) + '.txt' );
 var index = 0;
 
 function getVertex( buffer ) {

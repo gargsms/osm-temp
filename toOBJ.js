@@ -1,6 +1,5 @@
 const fs = require( 'fs' );
-const outStream = fs.createWriteStream( process.argv[ 2 ] + '.obj' || 'out' );
-var index = 0;
+const outStream = fs.createWriteStream( ( process.argv[ 2 ] || 'out' ) + '.obj' );
 
 function getVertex( buffer ) {
   return 'v ' + ( ( buffer.readInt16LE( 1 ) << 8 | buffer.readInt8( 0 ) ) / 100000 ) +
@@ -9,7 +8,7 @@ function getVertex( buffer ) {
 }
 
 function getVertexIndex( buffer ) {
-  return ' ' + buffer.readUInt16LE( );
+  return ' ' + ( buffer.readUInt16LE( ) + 1 ); // OBJ indices start at 1
 }
 
 function decodeVertexGroup( file, buffer, offset ) {
