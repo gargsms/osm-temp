@@ -4,6 +4,8 @@ const objStream = fs.createWriteStream( outFile + '.obj' );
 const mtlStream = fs.createWriteStream( outFile + '.mtl' );
 const md5 = require( 'blueimp-md5' );
 
+var haveMaterials = {}; // Will hold materials that we have already derived
+
 function init( ) {
   objStream.write( 'mtllib ' + outFile + '.mtl\n' );
 }
@@ -19,10 +21,13 @@ function getVertexIndex( buffer ) {
 }
 
 function getColorAsRGB( buffer, type ) {
-  return type + Math.toFixed( ( buffer.readUInt8( 0 ) / 255 ), 5 ) +
-    Math.toFixed( ( buffer.readUInt8( 1 ) / 255 ), 5 ) +
-    Math.toFixed( ( buffer.readUInt8( 2 ) / 255 ), 5 );
-
+  var out = type + ( buffer.readUInt8( 0 ) / 255 )
+    .toFixed( 5 ) + ' ' +
+    ( buffer.readUInt8( 1 ) / 255 )
+    .toFixed( 5 ) + ' ' +
+    ( buffer.readUInt8( 2 ) / 255 )
+    .toFixed( 5 );
+  return out;
 }
 
 function getMaterialFromColor( color ) {
@@ -30,34 +35,65 @@ function getMaterialFromColor( color ) {
 }
 
 function decodeColor( buffer ) {
+  var colors = {},
+    matName = '';
 
+  colors.ambient = getColorAsRGB( buffer.slice( 0, 3 ), 'Ka ' );
+  colors.diffuse = getColorAsRGB( buffer.slice( 3 ), 'Kd ' );
+
+  matName = getMaterialFromColor( colors.ambient + colors.diffuse );
+
+  var known = haveMaterials[ matName ];
+
+  if ( known ) {
+    return {
+      name: matName,
+      cached: true
+    };
+  } else {
+    haveMaterials[ matName ] = {
+      name: matName,
+      colors
+    };
+    return {
+      material: haveMaterials[ matName ],
+      cached: false
+    };
+  }
 }
 
-function decodeVertexGroup( file, buffer, offset ) {
+function decodeVertexGroup( buffer, offset ) {
   var length = buffer.readInt8( offset + 1 ),
     i = 0;
 
   for ( ; i < length; i++ ) {
-    outStream.write( getVertex( buffer.slice( 9 * i + 2, 9 * ( i + 1 ) + 2 ) ) );
+    objStream.write( getVertex( buffer.slice( 9 * i + 2, 9 * ( i + 1 ) + 2 ) ) );
   }
 
   return 2 + length * 9;
 }
 
-function decodeTriangleGroup( file, buffer, offset ) {
+function decodeTriangleGroup( buffer, offset ) {
   var length = buffer.readInt8( offset + 8 ),
     i = 0,
     plus9 = offset + 9;
 
-  // Insert color info in mtl, obj files here
+  var mat = decodeColor( buffer.slice( offset + 2, offset + 8 ) );
+  if ( mat.cached ) { // Don't write in the mtl file
+    objStream.write( 'usemtl ' + mat.name + '\n' );
+  } else {
+    mtlStream.write( 'newmtl ' + mat.material.name + '\n' );
+    mtlStream.write( mat.material.colors.ambient + '\n' );
+    mtlStream.write( mat.material.colors.diffuse + '\n' );
+  }
 
   for ( ; i < length; i++ ) {
     if ( !( i % 3 ) ) {
-      outStream.write( 'f' );
+      objStream.write( 'f' );
     }
-    outStream.write( getVertexIndex( buffer.slice( 2 * i + plus9, 2 * ( i + 1 ) + plus9 ) ) );
+    objStream.write( getVertexIndex( buffer.slice( 2 * i + plus9, 2 * ( i + 1 ) + plus9 ) ) );
     if ( i && !( ( i + 1 ) % 3 ) ) {
-      outStream.write( '\n' );
+      objStream.write( '\n' );
     }
   }
 
@@ -76,7 +112,6 @@ function processFile( file ) {
 }
 
 function start( buffer ) {
-  const outputFile = 'out';
   var inputBuffer = buffer,
     offset = 0,
     group = 0;
@@ -85,10 +120,10 @@ function start( buffer ) {
     group = inputBuffer.readUInt8( offset );
     switch ( group ) {
     case 3:
-      offset += decodeVertexGroup( outputFile, inputBuffer, offset );
+      offset += decodeVertexGroup( inputBuffer, offset );
       break;
     case 11:
-      offset += decodeTriangleGroup( outputFile, inputBuffer, offset );
+      offset += decodeTriangleGroup( inputBuffer, offset );
       break;
     default:
       console.error( 'Bad group: ', group, ' at offset ', offset );
@@ -96,7 +131,7 @@ function start( buffer ) {
     }
   }
 
-  outStream.end( );
+  objStream.end( );
 
 }
 
