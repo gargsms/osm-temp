@@ -5,7 +5,7 @@ const mtlStream = fs.createWriteStream( outFile + '.mtl' );
 const md5 = require( 'blueimp-md5' );
 
 function init( ) {
-
+  objStream.write( 'mtllib ' + outFile + '.mtl\n' );
 }
 
 function getVertex( buffer ) {
@@ -19,11 +19,14 @@ function getVertexIndex( buffer ) {
 }
 
 function getColorAsRGB( buffer, type ) {
+  return type + Math.toFixed( ( buffer.readUInt8( 0 ) / 255 ), 5 ) +
+    Math.toFixed( ( buffer.readUInt8( 1 ) / 255 ), 5 ) +
+    Math.toFixed( ( buffer.readUInt8( 2 ) / 255 ), 5 );
 
 }
 
 function getMaterialFromColor( color ) {
-
+  return md5( color );
 }
 
 function decodeColor( buffer ) {
