@@ -1,0 +1,11 @@
+{
+  "name": "osm-temp",
+  "description": "Script dump for OpenStreetMap WebGL project",
+  "version": "0.0.1",
+  "author": "Sukant Garg",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "blueimp-md5": "latest"
+  },
+  "repository": "gargsms/osm-temp"
+}
