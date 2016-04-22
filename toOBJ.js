@@ -1,5 +1,11 @@
 const fs = require( 'fs' );
-const outStream = fs.createWriteStream( ( process.argv[ 2 ] || 'out' ) + '.obj' );
+const outFile = process.argv[ 2 ] || 'out';
+const objStream = fs.createWriteStream( outFile + '.obj' );
+const mtlStream = fs.createWriteStream( outFile + '.mtl' );
+
+function init( ) {
+
+}
 
 function getVertex( buffer ) {
   return 'v ' + ( ( buffer.readInt16LE( 1 ) << 8 | buffer.readInt8( 0 ) ) / 100000 ) +
@@ -9,6 +15,18 @@ function getVertex( buffer ) {
 
 function getVertexIndex( buffer ) {
   return ' ' + ( buffer.readUInt16LE( ) + 1 ); // OBJ indices start at 1
+}
+
+function getColorAsRGB( buffer, type ) {
+
+}
+
+function getMaterialFromColor( color ) {
+
+}
+
+function decodeColor( buffer ) {
+
 }
 
 function decodeVertexGroup( file, buffer, offset ) {
@@ -27,12 +45,14 @@ function decodeTriangleGroup( file, buffer, offset ) {
     i = 0,
     plus9 = offset + 9;
 
+  // Insert color info in mtl, obj files here
+
   for ( ; i < length; i++ ) {
-    if( !(i % 3 ) ) {
+    if ( !( i % 3 ) ) {
       outStream.write( 'f' );
     }
     outStream.write( getVertexIndex( buffer.slice( 2 * i + plus9, 2 * ( i + 1 ) + plus9 ) ) );
-    if( i && !( ( i + 1 ) % 3 ) ) {
+    if ( i && !( ( i + 1 ) % 3 ) ) {
       outStream.write( '\n' );
     }
   }
@@ -42,6 +62,8 @@ function decodeTriangleGroup( file, buffer, offset ) {
 
 function processFile( file ) {
   const inputFile = file || 'test';
+
+  init( );
 
   fs.readFile( inputFile, ( e, data ) => {
     if ( e ) throw e;
