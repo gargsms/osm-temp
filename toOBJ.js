@@ -2,6 +2,7 @@ const fs = require( 'fs' );
 const outFile = process.argv[ 2 ] || 'out';
 const objStream = fs.createWriteStream( outFile + '.obj' );
 const mtlStream = fs.createWriteStream( outFile + '.mtl' );
+const md5 = require( 'blueimp-md5' );
 
 function init( ) {
 
