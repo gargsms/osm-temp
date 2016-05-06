@@ -11,9 +11,21 @@ function init( ) {
 }
 
 function getVertex( buffer ) {
-  return 'v ' + ( ( buffer.readInt16LE( 1 ) << 8 | buffer.readInt8( 0 ) ) / 100000 ) +
-    ' ' + ( ( buffer.readInt16LE( 4 ) << 8 | buffer.readInt8( 3 ) ) / 100000 ) +
-    ' ' + ( ( buffer.readInt16LE( 7 ) << 8 | buffer.readInt8( 6 ) ) / 100000 ) + '\n';
+  var coOrds = {};
+
+  coOrds.x = ( buffer.readUInt16LE( 1 ) << 8 | buffer.readUInt8( 0 ) );
+  coOrds.y = ( buffer.readUInt16LE( 4 ) << 8 | buffer.readUInt8( 3 ) );
+  coOrds.z = ( buffer.readUInt16LE( 7 ) << 8 | buffer.readUInt8( 6 ) );
+
+  for( ord in coOrds ) {
+    if( coOrds[ ord ] & 0x800000 ) { // Negative number
+      coOrds[ ord ] |= ~0xffffff;
+    }
+  }
+
+  return 'v ' + ( coOrds.x / 100000 ) +
+    ' ' + (  coOrds.y / 100000 ) +
+    ' ' + (  coOrds.z / 100000 ) + '\n';
 }
 
 function getVertexIndex( buffer ) {
@@ -62,6 +74,18 @@ function decodeColor( buffer ) {
   }
 }
 
+function writeMaterial( buffer ) {
+  var mat = decodeColor( buffer );
+  if ( mat.cached ) { // Don't write in the mtl file
+    objStream.write( 'usemtl ' + mat.name + '\n' );
+  } else {
+    mtlStream.write( 'newmtl ' + mat.material.name + '\n' );
+    mtlStream.write( mat.material.colors.ambient + '\n' );
+    mtlStream.write( mat.material.colors.diffuse + '\n' );
+    objStream.write( 'usemtl ' + mat.material.name + '\n' );
+  }
+}
+
 function decodeVertexGroup( buffer, offset ) {
   var length = buffer.readInt8( offset + 1 ),
     i = 0;
@@ -78,14 +102,7 @@ function decodeTriangleGroup( buffer, offset ) {
     i = 0,
     plus9 = offset + 9;
 
-  var mat = decodeColor( buffer.slice( offset + 2, offset + 8 ) );
-  if ( mat.cached ) { // Don't write in the mtl file
-    objStream.write( 'usemtl ' + mat.name + '\n' );
-  } else {
-    mtlStream.write( 'newmtl ' + mat.material.name + '\n' );
-    mtlStream.write( mat.material.colors.ambient + '\n' );
-    mtlStream.write( mat.material.colors.diffuse + '\n' );
-  }
+  writeMaterial( buffer.slice( offset + 2, offset + 8 ) );
 
   for ( ; i < length; i++ ) {
     if ( !( i % 3 ) ) {
@@ -94,6 +111,33 @@ function decodeTriangleGroup( buffer, offset ) {
     objStream.write( getVertexIndex( buffer.slice( 2 * i + plus9, 2 * ( i + 1 ) + plus9 ) ) );
     if ( i && !( ( i + 1 ) % 3 ) ) {
       objStream.write( '\n' );
+    }
+  }
+
+  return 9 + length * 2;
+}
+
+function decodeTriangleStrip( buffer, offset ) {
+  var length = buffer.readInt8( offset + 8 ),
+    i = 0,
+    plus9 = offset + 9,
+    a, b, c; // Unfortunate naming for triplets of vertex indices
+
+  writeMaterial( buffer.slice( offset + 2, offset + 8 ) );
+
+  for( ; i < length - 2; i++ ) {
+    a = getVertexIndex( buffer.slice( 2 * i + plus9, 2 * ( i + 1 ) + plus9 ) );
+    b = getVertexIndex( buffer.slice( 2 * ( i + 1 ) + plus9, 2 * ( i + 2 ) + plus9 ) );
+    c = getVertexIndex( buffer.slice( 2 * ( i + 2 ) + plus9, 2 * ( i + 3 ) + plus9 ) );
+    if( a === b || b === c || a === c ) {
+      // Degenerate triangle - don't write this block to the file
+      continue;
+    } else {
+      if( i % 2 ) {
+        objStream.write( 'f' + b + a + c + '\n' );
+      } else {
+        objStream.write( 'f' + a + b + c + '\n' );
+      }
     }
   }
 
@@ -125,6 +169,9 @@ function start( buffer ) {
     case 11:
       offset += decodeTriangleGroup( inputBuffer, offset );
       break;
+    case 12:
+      offset += decodeTriangleStrip( inputBuffer, offset );
+      break;
     default:
       console.error( 'Bad group: ', group, ' at offset ', offset );
       process.exit( 1 );
@@ -132,6 +179,7 @@ function start( buffer ) {
   }
 
   objStream.end( );
+  mtlStream.end( );
 
 }
 
