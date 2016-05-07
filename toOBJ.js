@@ -88,10 +88,11 @@ function writeMaterial( buffer ) {
 
 function decodeVertexGroup( buffer, offset ) {
   var length = buffer.readUInt8( offset + 1 ),
-    i = 0;
+    i = 0,
+    plus2 = offset + 2;
 
   for ( ; i < length; i++ ) {
-    objStream.write( getVertex( buffer.slice( 9 * i + 2, 9 * ( i + 1 ) + 2 ) ) );
+    objStream.write( getVertex( buffer.slice( 9 * i + plus2, 9 * ( i + 1 ) + plus2 ) ) );
   }
 
   return 2 + length * 9;
