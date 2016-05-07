@@ -33,12 +33,9 @@ function getVertexIndex( buffer ) {
 }
 
 function getColorAsRGB( buffer, type ) {
-  var out = type + ( buffer.readUInt8( 0 ) / 255 )
-    .toFixed( 5 ) + ' ' +
-    ( buffer.readUInt8( 1 ) / 255 )
-    .toFixed( 5 ) + ' ' +
-    ( buffer.readUInt8( 2 ) / 255 )
-    .toFixed( 5 );
+  var out = type + ( buffer.readUInt8( 0 ) / 255 ).toFixed( 5 ) + ' ' +
+    ( buffer.readUInt8( 1 ) / 255 ).toFixed( 5 ) + ' ' +
+    ( buffer.readUInt8( 2 ) / 255 ).toFixed( 5 );
   return out;
 }
 
@@ -87,7 +84,7 @@ function writeMaterial( buffer ) {
 }
 
 function decodeVertexGroup( buffer, offset ) {
-  var length = buffer.readInt8( offset + 1 ),
+  var length = buffer.readUInt8( offset + 1 ),
     i = 0;
 
   for ( ; i < length; i++ ) {
@@ -98,7 +95,7 @@ function decodeVertexGroup( buffer, offset ) {
 }
 
 function decodeTriangleGroup( buffer, offset ) {
-  var length = buffer.readInt8( offset + 8 ),
+  var length = buffer.readUInt8( offset + 8 ),
     i = 0,
     plus9 = offset + 9;
 
@@ -118,7 +115,7 @@ function decodeTriangleGroup( buffer, offset ) {
 }
 
 function decodeTriangleStrip( buffer, offset ) {
-  var length = buffer.readInt8( offset + 8 ),
+  var length = buffer.readUInt8( offset + 8 ),
     i = 0,
     plus9 = offset + 9,
     a, b, c; // Unfortunate naming for triplets of vertex indices
@@ -129,6 +126,7 @@ function decodeTriangleStrip( buffer, offset ) {
     a = getVertexIndex( buffer.slice( 2 * i + plus9, 2 * ( i + 1 ) + plus9 ) );
     b = getVertexIndex( buffer.slice( 2 * ( i + 1 ) + plus9, 2 * ( i + 2 ) + plus9 ) );
     c = getVertexIndex( buffer.slice( 2 * ( i + 2 ) + plus9, 2 * ( i + 3 ) + plus9 ) );
+
     if( a === b || b === c || a === c ) {
       // Degenerate triangle - don't write this block to the file
       continue;
@@ -138,6 +136,29 @@ function decodeTriangleStrip( buffer, offset ) {
       } else {
         objStream.write( 'f' + a + b + c + '\n' );
       }
+    }
+  }
+
+  return 9 + length * 2;
+}
+
+function decodeConvexPolygon( buffer, offset ) {
+  var length = buffer.readUInt8( offset + 8 ),
+    i = 1,
+    plus9 = offset + 9,
+    a = getVertexIndex( buffer.slice( plus9, plus9 + 2 ) ),
+    b, c;
+
+  writeMaterial( buffer.slice( offset + 2, offset + 8 ) );
+
+  for( ; i < length - 2; i++ ) {
+    b = getVertexIndex( buffer.slice( 2 * ( i ) + plus9, 2 * ( i + 1 ) + plus9 ) );
+    c = getVertexIndex( buffer.slice( 2 * ( i + 1 ) + plus9, 2 * ( i + 2 ) + plus9 ) );
+
+    if( a === b || b === c || a === c ) {
+      continue;
+    } else {
+      objStream.write( 'f' + a + b + c + '\n' );
     }
   }
 
@@ -171,6 +192,11 @@ function start( buffer ) {
       break;
     case 12:
       offset += decodeTriangleStrip( inputBuffer, offset );
+      break;
+    case 13:
+    case 14: // CONVEX_POLYGON, TRIANGLE_FAN are identical to process
+             // Both seem to be deprecated in O2W, though
+      offset += decodeConvexPolygon( inputBuffer, offset );
       break;
     default:
       console.error( 'Bad group: ', group, ' at offset ', offset );
