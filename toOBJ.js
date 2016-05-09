@@ -163,6 +163,11 @@ function decodeConvexPolygon( buffer, offset ) {
     }
   }
 
+  // Apparently, these primitives aren't completely closed like this
+  // So we close them by joining last, 2nd and 1st points
+  b = getVertexIndex( buffer.slice( plus9 + 2, plus9 + 4 ) );
+  objStream.write( 'f' + c + b + a + '\n' );
+
   return 9 + length * 2;
 }
 
