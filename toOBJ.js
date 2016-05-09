@@ -74,15 +74,12 @@ function decodeColor( buffer ) {
 function writeMaterial( buffer ) {
   var mat = decodeColor( buffer );
   if ( mat.cached ) { // Don't write in the mtl file
-    if( mat.name !== haveMaterials.previous ) {
-      objStream.write( 'usemtl ' + mat.name + '\n' );
-    }
+    objStream.write( 'usemtl ' + mat.name + '\n' );
   } else {
     mtlStream.write( 'newmtl ' + mat.material.name + '\n' );
     mtlStream.write( mat.material.colors.ambient + '\n' );
     mtlStream.write( mat.material.colors.diffuse + '\n' );
     objStream.write( 'usemtl ' + mat.material.name + '\n' );
-    haveMaterials.previous = mat.material.name;
   }
 }
 
