@@ -47,10 +47,9 @@ function decodeColor( buffer ) {
   var colors = {},
     matName = '';
 
-  colors.ambient = getColorAsRGB( buffer.slice( 0, 3 ), 'Ka ' );
-  colors.diffuse = getColorAsRGB( buffer.slice( 3 ), 'Kd ' );
+  colors.diffuse = getColorAsRGB( buffer, 'Kd ' );
 
-  matName = getMaterialFromColor( colors.ambient + colors.diffuse );
+  matName = getMaterialFromColor( colors.diffuse );
 
   var known = haveMaterials[ matName ];
 
@@ -77,7 +76,6 @@ function writeMaterial( buffer ) {
     objStream.write( 'usemtl ' + mat.name + '\n' );
   } else {
     mtlStream.write( 'newmtl ' + mat.material.name + '\n' );
-    mtlStream.write( mat.material.colors.ambient + '\n' );
     mtlStream.write( mat.material.colors.diffuse + '\n' );
     objStream.write( 'usemtl ' + mat.material.name + '\n' );
   }
@@ -96,37 +94,37 @@ function decodeVertexGroup( buffer, offset ) {
 }
 
 function decodeTriangleGroup( buffer, offset ) {
-  var length = buffer.readUInt8( offset + 8 ),
+  var length = buffer.readUInt8( offset + 5 ),
     i = 0,
-    plus9 = offset + 9;
+    plus6 = offset + 6;
 
-  writeMaterial( buffer.slice( offset + 2, offset + 8 ) );
+  writeMaterial( buffer.slice( offset + 2, offset + 5 ) );
 
   for ( ; i < length; i++ ) {
     if ( !( i % 3 ) ) {
       objStream.write( 'f' );
     }
-    objStream.write( getVertexIndex( buffer.slice( 2 * i + plus9, 2 * ( i + 1 ) + plus9 ) ) );
+    objStream.write( getVertexIndex( buffer.slice( 2 * i + plus6, 2 * ( i + 1 ) + plus6 ) ) );
     if ( i && !( ( i + 1 ) % 3 ) ) {
       objStream.write( '\n' );
     }
   }
 
-  return 9 + length * 2;
+  return 6 + length * 2;
 }
 
 function decodeTriangleStrip( buffer, offset ) {
-  var length = buffer.readUInt8( offset + 8 ),
+  var length = buffer.readUInt8( offset + 5 ),
     i = 0,
-    plus9 = offset + 9,
+    plus6 = offset + 6,
     a, b, c; // Unfortunate naming for triplets of vertex indices
 
-  writeMaterial( buffer.slice( offset + 2, offset + 8 ) );
+  writeMaterial( buffer.slice( offset + 2, offset + 5 ) );
 
   for( ; i < length - 2; i++ ) {
-    a = getVertexIndex( buffer.slice( 2 * i + plus9, 2 * ( i + 1 ) + plus9 ) );
-    b = getVertexIndex( buffer.slice( 2 * ( i + 1 ) + plus9, 2 * ( i + 2 ) + plus9 ) );
-    c = getVertexIndex( buffer.slice( 2 * ( i + 2 ) + plus9, 2 * ( i + 3 ) + plus9 ) );
+    a = getVertexIndex( buffer.slice( 2 * i + plus6, 2 * ( i + 1 ) + plus6 ) );
+    b = getVertexIndex( buffer.slice( 2 * ( i + 1 ) + plus6, 2 * ( i + 2 ) + plus6 ) );
+    c = getVertexIndex( buffer.slice( 2 * ( i + 2 ) + plus6, 2 * ( i + 3 ) + plus6 ) );
 
     if( a === b || b === c || a === c ) {
       // Degenerate triangle - don't write this block to the file
@@ -140,21 +138,21 @@ function decodeTriangleStrip( buffer, offset ) {
     }
   }
 
-  return 9 + length * 2;
+  return 6 + length * 2;
 }
 
 function decodeConvexPolygon( buffer, offset ) {
-  var length = buffer.readUInt8( offset + 8 ),
+  var length = buffer.readUInt8( offset + 5 ),
     i = 1,
-    plus9 = offset + 9,
-    a = getVertexIndex( buffer.slice( plus9, plus9 + 2 ) ),
+    plus6 = offset + 6,
+    a = getVertexIndex( buffer.slice( plus6, plus6 + 2 ) ),
     b, c;
 
-  writeMaterial( buffer.slice( offset + 2, offset + 8 ) );
+  writeMaterial( buffer.slice( offset + 2, offset + 5 ) );
 
   for( ; i < length - 2; i++ ) {
-    b = getVertexIndex( buffer.slice( 2 * ( i ) + plus9, 2 * ( i + 1 ) + plus9 ) );
-    c = getVertexIndex( buffer.slice( 2 * ( i + 1 ) + plus9, 2 * ( i + 2 ) + plus9 ) );
+    b = getVertexIndex( buffer.slice( 2 * ( i ) + plus6, 2 * ( i + 1 ) + plus6 ) );
+    c = getVertexIndex( buffer.slice( 2 * ( i + 1 ) + plus6, 2 * ( i + 2 ) + plus6 ) );
 
     if( a === b || b === c || a === c ) {
       continue;
@@ -165,10 +163,10 @@ function decodeConvexPolygon( buffer, offset ) {
 
   // Apparently, these primitives aren't completely closed like this
   // So we close them by joining last, 2nd and 1st points
-  b = getVertexIndex( buffer.slice( plus9 + 2, plus9 + 4 ) );
+  b = getVertexIndex( buffer.slice( plus6 + 2, plus6 + 4 ) );
   objStream.write( 'f' + c + b + a + '\n' );
 
-  return 9 + length * 2;
+  return 6 + length * 2;
 }
 
 function processFile( file ) {
